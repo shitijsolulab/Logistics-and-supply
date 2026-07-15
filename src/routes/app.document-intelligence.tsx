@@ -536,7 +536,7 @@ function DocumentIntelligencePage() {
   const [query, setQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState<"all" | DocType>("all");
   const [selectedId, setSelectedId] = useState<string>(documents[0].id);
-  const [aiOpen, setAiOpen] = useState(true);
+  const [aiOpen, setAiOpen] = useState(false);
 
   const filtered = useMemo(() => {
     let list = documents;
@@ -642,6 +642,21 @@ function DocumentIntelligencePage() {
           </div>
         )}
       </div>
+
+      {/* Floating AI Copilot launcher — opens the dockable panel */}
+      {!aiOpen && (
+        <button
+          type="button"
+          onClick={() => setAiOpen(true)}
+          aria-label="Open AI Copilot"
+          className="brand-gradient group fixed bottom-6 right-6 z-40 inline-flex items-center gap-2 rounded-full py-3 pl-3 pr-4 text-sm font-semibold text-primary-foreground shadow-xl shadow-primary/30 ring-1 ring-white/10 transition hover:-translate-y-0.5 hover:opacity-95"
+        >
+          <span className="grid h-8 w-8 place-items-center rounded-full bg-white/15">
+            <Sparkles className="h-4 w-4" />
+          </span>
+          <span className="hidden sm:inline">Ask AI Copilot</span>
+        </button>
+      )}
     </div>
   );
 }

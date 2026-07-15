@@ -5,23 +5,25 @@ import { cn } from "../../lib/utils";
 // foreground + muted tagline) so it reads well in both light and dark mode.
 export function LogoLockup({ className }: Readonly<{ className?: string }>) {
   return (
-    <span className={cn("inline-flex items-center gap-3", className)}>
+    <span className={cn("inline-flex items-center gap-2.5", className)}>
       <img
         src="/logo.png"
         alt="Logistics & Supply Chain AI OS"
-        className="h-16 w-auto shrink-0 scale-110 object-contain dark:hidden"
+        className="h-11 w-auto shrink-0 object-contain dark:hidden"
       />
       <img
         src="/logo-light.png"
         alt="Logistics & Supply Chain AI OS"
-        className="hidden h-16 w-auto shrink-0 scale-110 object-contain dark:block"
+        className="hidden h-11 w-auto shrink-0 object-contain dark:block"
       />
       <span className="flex flex-col leading-none">
-        <span className="text-[0.6rem] font-semibold uppercase tracking-[0.3em] text-primary">
+        <span className="text-[0.52rem] font-semibold uppercase leading-[1.35] tracking-[0.16em] text-primary">
           Logistics &amp; Supply Chain
         </span>
-        <span className="text-xl font-bold tracking-tight text-foreground">AI OS</span>
-        <span className="mt-1 text-[0.6rem] font-medium text-muted-foreground">
+        <span className="mt-0.5 text-lg font-bold leading-none tracking-tight text-foreground">
+          AI OS
+        </span>
+        <span className="mt-1 text-[0.58rem] font-medium leading-none text-muted-foreground">
           The OS for logistics.
         </span>
       </span>

@@ -1,0 +1,373 @@
+import { createFileRoute } from "@tanstack/react-router";
+import { CheckCircle2, ClipboardCheck, Clock, ShieldCheck, XCircle } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import { useState } from "react";
+
+import { useSession } from "../lib/session";
+import { cn } from "../lib/utils";
+
+export const Route = createFileRoute("/app/approvals")({ component: Approvals });
+
+/* ─────────────────────────  Dummy data  ───────────────────────── */
+
+type Decision = "approved" | "rejected";
+
+type ApprovalItem = {
+  id: string;
+  type: string;
+  title: string;
+  amount: string;
+  requester: string;
+  approver: string;
+  waited: string;
+  priority: "high" | "medium" | "low";
+  summary: string;
+  checks: { label: string; ok: boolean }[];
+};
+
+const INITIAL: ApprovalItem[] = [
+  {
+    id: "wf_po_2214",
+    type: "Purchase Order Approval",
+    title: "PO-2214 — Acme Freight Co.",
+    amount: "$14,280.00",
+    requester: "PO Copilot",
+    approver: "Procurement Manager",
+    waited: "18m",
+    priority: "medium",
+    summary:
+      "Supplier validated, no duplicate PO detected, and pricing is within agreed contract terms. Ready to create in NetSuite once approved.",
+    checks: [
+      { label: "Supplier validated", ok: true },
+      { label: "No duplicate PO", ok: true },
+      { label: "Pricing within terms", ok: true },
+    ],
+  },
+  {
+    id: "wf_invoice_8841",
+    type: "Invoice Match Approval",
+    title: "INV-8841 — Globex Logistics",
+    amount: "$6,540.00",
+    requester: "Invoice Copilot",
+    approver: "Finance Manager",
+    waited: "42m",
+    priority: "medium",
+    summary:
+      "Three-way match complete against PO and goods receipt GR-5521, with a 1-unit quantity variance detected. Review the variance before finance approval.",
+    checks: [
+      { label: "Three-way match", ok: true },
+      { label: "Duplicate check", ok: true },
+      { label: "Quantity matches GR", ok: false },
+    ],
+  },
+  {
+    id: "wf_dup_po_2231",
+    type: "Duplicate PO Flag",
+    title: "PO-2231 — Globex Logistics",
+    amount: "$8,120.00",
+    requester: "PO Copilot",
+    approver: "Procurement Manager",
+    waited: "1h 05m",
+    priority: "high",
+    summary:
+      "Flagged as a likely duplicate of PO-2198. Held before creation — approve only after confirming with the supplier, otherwise reject.",
+    checks: [
+      { label: "Supplier verified", ok: true },
+      { label: "Not a duplicate", ok: false },
+      { label: "Within budget", ok: true },
+    ],
+  },
+  {
+    id: "wf_supplier_northwind",
+    type: "Supplier Onboarding Approval",
+    title: "New supplier — Northwind Freight",
+    amount: "—",
+    requester: "Onboarding Copilot",
+    approver: "Procurement Team",
+    waited: "1h 34m",
+    priority: "low",
+    summary:
+      "Tax documents validated, banking verified, no duplicate supplier found, and AI risk assessment returned low. Ready to create the supplier record.",
+    checks: [
+      { label: "Tax docs validated", ok: true },
+      { label: "No duplicate supplier", ok: true },
+      { label: "Risk assessment: low", ok: true },
+    ],
+  },
+  {
+    id: "wf_delivery_4459",
+    type: "Delivery Exception",
+    title: "Shipment SHP-4459 — delayed 2 days",
+    amount: "—",
+    requester: "Tracking Copilot",
+    approver: "Operations Manager",
+    waited: "2h 12m",
+    priority: "high",
+    summary:
+      "Delay detected on the Hamburg → Newark lane. Draft customer notification and corrective action plan are ready for operations sign-off.",
+    checks: [
+      { label: "Delay confirmed", ok: true },
+      { label: "Customer draft ready", ok: true },
+      { label: "On original ETA", ok: false },
+    ],
+  },
+  {
+    id: "wf_reorder_17skus",
+    type: "Reorder Recommendation",
+    title: "Low stock — 17 SKUs below reorder point",
+    amount: "$21,450.00",
+    requester: "Inventory Copilot",
+    approver: "Supply Chain Manager",
+    waited: "3h 08m",
+    priority: "medium",
+    summary:
+      "Reorder recommendations generated across 17 SKUs that dropped below their reorder point. Approve to send the purchase recommendation to procurement.",
+    checks: [
+      { label: "Demand forecast run", ok: true },
+      { label: "Preferred suppliers set", ok: true },
+      { label: "Budget confirmed", ok: false },
+    ],
+  },
+];
+
+const PRIORITY_META: Record<ApprovalItem["priority"], { label: string; cls: string }> = {
+  high: { label: "High", cls: "bg-destructive/10 border-destructive/30 text-destructive" },
+  medium: { label: "Medium", cls: "bg-amber-500/10 border-amber-500/30 text-amber-500" },
+  low: { label: "Low", cls: "bg-muted border-border text-muted-foreground" },
+};
+
+/* ─────────────────────────  Page  ───────────────────────── */
+
+function Approvals() {
+  const { isManager } = useSession();
+  const [items, setItems] = useState(INITIAL);
+  const [decided, setDecided] = useState<{ item: ApprovalItem; decision: Decision }[]>([]);
+
+  const decide = (item: ApprovalItem, decision: Decision) => {
+    setItems((cur) => cur.filter((i) => i.id !== item.id));
+    setDecided((cur) => [{ item, decision }, ...cur]);
+  };
+
+  return (
+    <div className="space-y-7">
+      {/* Header */}
+      <div>
+        <div className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+          <ClipboardCheck className="h-3.5 w-3.5 text-primary" />
+          Approvals
+        </div>
+        <h1 className="mt-2 text-2xl font-semibold tracking-tight text-foreground md:text-3xl">
+          Approval queue
+        </h1>
+        <p className="mt-1.5 max-w-xl text-sm text-muted-foreground">
+          Items awaiting a human decision. Review the AI summary and control checks, then approve or
+          reject before anything posts.
+        </p>
+      </div>
+
+      {/* Summary tiles */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        <Tile icon={Clock} label="Pending" value={items.length} tone="text-amber-500" />
+        <Tile
+          icon={CheckCircle2}
+          label="Approved today"
+          value={decided.filter((d) => d.decision === "approved").length}
+          tone="text-emerald-500"
+        />
+        <Tile
+          icon={XCircle}
+          label="Rejected today"
+          value={decided.filter((d) => d.decision === "rejected").length}
+          tone="text-destructive"
+        />
+      </div>
+
+      {!isManager && (
+        <div className="rounded-lg border border-border bg-surface px-3 py-2 text-sm text-muted-foreground">
+          You can view the queue, but only owners/admins may approve or reject.
+        </div>
+      )}
+
+      {/* Queue */}
+      {items.length === 0 ? (
+        <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-border py-16 text-center">
+          <div className="grid h-11 w-11 place-items-center rounded-full bg-emerald-500/10 text-emerald-500">
+            <CheckCircle2 className="h-5 w-5" />
+          </div>
+          <div>
+            <p className="text-sm font-medium text-foreground">You're all caught up</p>
+            <p className="mt-1 text-sm text-muted-foreground">Nothing is waiting for approval.</p>
+          </div>
+        </div>
+      ) : (
+        <div className="grid gap-3">
+          {items.map((item) => (
+            <ApprovalCard key={item.id} item={item} canDecide={isManager} onDecide={decide} />
+          ))}
+        </div>
+      )}
+
+      {/* Recently decided */}
+      {decided.length > 0 && (
+        <div>
+          <h2 className="mb-3 flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+            <ShieldCheck className="h-3.5 w-3.5 text-primary" />
+            Recently decided
+          </h2>
+          <ul className="divide-y divide-border overflow-hidden rounded-2xl border border-border bg-card">
+            {decided.map(({ item, decision }, i) => (
+              <li key={i} className="flex items-center justify-between gap-3 px-4 py-3 text-sm">
+                <div className="min-w-0">
+                  <div className="truncate font-medium text-foreground">{item.title}</div>
+                  <div className="text-xs text-muted-foreground">
+                    {item.type} · {item.amount}
+                  </div>
+                </div>
+                <span
+                  className={cn(
+                    "inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2 py-0.5 text-[11px] font-medium capitalize",
+                    decision === "approved"
+                      ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-500"
+                      : "border-destructive/30 bg-destructive/10 text-destructive",
+                  )}
+                >
+                  {decision === "approved" ? (
+                    <CheckCircle2 className="h-3 w-3" />
+                  ) : (
+                    <XCircle className="h-3 w-3" />
+                  )}
+                  {decision}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Tile({
+  icon: Icon,
+  label,
+  value,
+  tone,
+}: {
+  icon: LucideIcon;
+  label: string;
+  value: number;
+  tone: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-border bg-card p-4">
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          {label}
+        </span>
+        <Icon className={cn("h-4 w-4", tone)} />
+      </div>
+      <div className={cn("mt-2 text-2xl font-semibold tabular-nums", tone)}>{value}</div>
+    </div>
+  );
+}
+
+function ApprovalCard({
+  item,
+  canDecide,
+  onDecide,
+}: {
+  item: ApprovalItem;
+  canDecide: boolean;
+  onDecide: (item: ApprovalItem, decision: Decision) => void;
+}) {
+  const [comment, setComment] = useState("");
+  const pr = PRIORITY_META[item.priority];
+
+  return (
+    <div className="rounded-2xl border border-border bg-card p-5">
+      <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] font-medium uppercase tracking-wider text-primary">
+              {item.type}
+            </span>
+            <span
+              className={cn(
+                "rounded-full border px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wider",
+                pr.cls,
+              )}
+            >
+              {pr.label}
+            </span>
+          </div>
+          <div className="mt-1 text-base font-semibold text-foreground">{item.title}</div>
+          <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+            <span className="font-mono text-sm font-semibold text-foreground">{item.amount}</span>
+            <span>·</span>
+            <span>Requested by {item.requester}</span>
+            <span>·</span>
+            <span className="flex items-center gap-1">
+              <Clock className="h-3 w-3" /> waiting {item.waited}
+            </span>
+          </div>
+        </div>
+        <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[11px] font-medium text-amber-500">
+          <Clock className="h-3 w-3" /> Awaiting {item.approver}
+        </span>
+      </div>
+
+      {/* AI summary */}
+      <div className="mb-3 rounded-xl border border-border bg-surface-2/50 p-3 text-sm text-foreground/90">
+        <div className="mb-1 flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+          <ShieldCheck className="h-3.5 w-3.5 text-primary" /> AI summary
+        </div>
+        <p>{item.summary}</p>
+      </div>
+
+      {/* Control checks */}
+      <div className="mb-4 flex flex-wrap gap-2">
+        {item.checks.map((c) => (
+          <span
+            key={c.label}
+            className={cn(
+              "inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[11px] font-medium",
+              c.ok
+                ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-500"
+                : "border-amber-500/30 bg-amber-500/10 text-amber-500",
+            )}
+          >
+            {c.ok ? <CheckCircle2 className="h-3 w-3" /> : <XCircle className="h-3 w-3" />}
+            {c.label}
+          </span>
+        ))}
+      </div>
+
+      {canDecide ? (
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <input
+            value={comment}
+            onChange={(e) => setComment(e.target.value)}
+            placeholder="Add a comment (optional)…"
+            className="flex-1 rounded-md border border-border bg-background px-3 py-1.5 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+          />
+          <div className="flex gap-2">
+            <button
+              onClick={() => onDecide(item, "approved")}
+              className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3.5 py-1.5 text-sm font-semibold text-primary-foreground transition hover:opacity-90"
+            >
+              <CheckCircle2 className="h-4 w-4" /> Approve
+            </button>
+            <button
+              onClick={() => onDecide(item, "rejected")}
+              className="inline-flex items-center gap-1.5 rounded-md border border-destructive/40 bg-destructive/10 px-3.5 py-1.5 text-sm font-semibold text-destructive transition hover:bg-destructive/20"
+            >
+              <XCircle className="h-4 w-4" /> Reject
+            </button>
+          </div>
+        </div>
+      ) : (
+        <p className="text-xs text-muted-foreground">Awaiting {item.approver} sign-off.</p>
+      )}
+    </div>
+  );
+}

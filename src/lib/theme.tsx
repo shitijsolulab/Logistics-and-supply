@@ -3,29 +3,32 @@
 // the app layout to the `.app-shell` element (see routes/app.tsx), so the marketing
 // landing page is never affected.
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 
 type Theme = "light" | "dark";
 const THEME_KEY = "aios.theme";
+
+// Read the persisted / system theme synchronously so the very first client
+// render already uses the correct theme — avoids the white → light → dark flash
+// on reload. Falls back to "light" during SSR (no window).
+function initialTheme(): Theme {
+  if (typeof window === "undefined") return "light";
+  try {
+    const stored = window.localStorage.getItem(THEME_KEY) as Theme | null;
+    if (stored === "light" || stored === "dark") return stored;
+    return window.matchMedia?.("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  } catch {
+    return "light";
+  }
+}
 
 type ThemeCtx = { theme: Theme; setTheme: (t: Theme) => void; toggle: () => void };
 
 const Ctx = createContext<ThemeCtx | null>(null);
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  // Default to light on the server; correct to stored/system preference after mount
-  // (avoids an SSR hydration mismatch).
-  const [theme, setThemeState] = useState<Theme>("light");
-
-  useEffect(() => {
-    const stored = window.localStorage.getItem(THEME_KEY) as Theme | null;
-    if (stored === "light" || stored === "dark") {
-      setThemeState(stored);
-    } else if (window.matchMedia?.("(prefers-color-scheme: dark)").matches) {
-      setThemeState("dark");
-    }
-  }, []);
+  const [theme, setThemeState] = useState<Theme>(initialTheme);
 
   const setTheme = useCallback((t: Theme) => {
     setThemeState(t);

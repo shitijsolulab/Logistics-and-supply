@@ -2,11 +2,14 @@ import { createFileRoute } from "@tanstack/react-router";
 import {
   Bot,
   FileSearch,
+  FileText,
+  Plus,
   RefreshCw,
   Send,
   ShieldCheck,
   Sparkles,
   User,
+  X,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -18,17 +21,36 @@ export const Route = createFileRoute("/app/assistant")({ component: Assistant })
 
 type Msg = { role: "user" | "assistant"; content: string };
 
-const SUGGESTED: { icon: LucideIcon; label: string }[] = [
-  { icon: FileSearch, label: "Summarize my most recent purchase order." },
-  { icon: Sparkles, label: "What can this platform do for my team?" },
-  { icon: Bot, label: "Draft a status update from this week's shipments." },
-  { icon: ShieldCheck, label: "Explain how approvals work here." },
-];
+// Module-level cache so the conversation survives navigating away from and back
+// to the Assistant within a session (the route component unmounts on nav, which
+// would otherwise reset local state). Cleared by "New chat".
+const chatCache: { messages: Msg[]; sessionId?: string } = { messages: [] };
 
-const CAPABILITIES: { icon: LucideIcon; title: string; detail: string }[] = [
-  { icon: FileSearch, title: "Grounded", detail: "Answers cite your own documents when enabled." },
-  { icon: ShieldCheck, title: "Controlled", detail: "Nothing posts — the assistant only drafts." },
-  { icon: Sparkles, title: "Traced", detail: "Every turn is logged to your audit trail." },
+const SUGGESTED: { icon: LucideIcon; title: string; desc: string; prompt: string }[] = [
+  {
+    icon: FileSearch,
+    title: "Summarize a document",
+    desc: "Get a quick read on your latest purchase order.",
+    prompt: "Summarize my most recent purchase order.",
+  },
+  {
+    icon: Bot,
+    title: "Weekly status update",
+    desc: "Draft a status from this week's shipments.",
+    prompt: "Draft a status update from this week's shipments.",
+  },
+  {
+    icon: Sparkles,
+    title: "Explore the platform",
+    desc: "See what the copilots can do for your team.",
+    prompt: "What can this platform do for my team?",
+  },
+  {
+    icon: ShieldCheck,
+    title: "How approvals work",
+    desc: "Understand routing and human sign-off.",
+    prompt: "Explain how approvals work here.",
+  },
 ];
 
 /* ─────────────────────────  Dummy responses (prototype)  ───────────────────────── */
@@ -102,15 +124,20 @@ function dummyReply(message: string, useRag: boolean): string {
 /* ─────────────────────────  Page  ───────────────────────── */
 
 function Assistant() {
-  const [messages, setMessages] = useState<Msg[]>([]);
+  const [messages, setMessages] = useState<Msg[]>(() => chatCache.messages);
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
-  const [useRag, setUseRag] = useState(false);
-  const sessionId = useRef<string | undefined>(undefined);
+  const [files, setFiles] = useState<string[]>([]);
+  const sessionId = useRef<string | undefined>(chatCache.sessionId);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
+  }, [messages]);
+
+  // Persist the conversation across route navigation within the session.
+  useEffect(() => {
+    chatCache.messages = messages;
   }, [messages]);
 
   const appendToLast = (delta: string) =>
@@ -133,7 +160,10 @@ function Assistant() {
   const send = async (text: string) => {
     const message = text.trim();
     if (!message || streaming) return;
+    // Uploaded documents ground the answer (citations shown).
+    const useDocs = files.length > 0;
     setInput("");
+    setFiles([]);
     setMessages((m) => [
       ...m,
       { role: "user", content: message },
@@ -146,19 +176,22 @@ function Assistant() {
       for await (const chunk of api.chatStream({
         message,
         session_id: sessionId.current,
-        use_rag: useRag,
+        use_rag: useDocs,
       })) {
-        if (chunk.session_id) sessionId.current = chunk.session_id;
+        if (chunk.session_id) {
+          sessionId.current = chunk.session_id;
+          chatCache.sessionId = chunk.session_id;
+        }
         if (chunk.delta) {
           got = true;
           appendToLast(chunk.delta);
         }
       }
       // Backend reachable but returned nothing → fall back to a dummy reply.
-      if (!got) await streamDummy(dummyReply(message, useRag));
+      if (!got) await streamDummy(dummyReply(message, useDocs));
     } catch {
       // No backend (prototype) → simulate a response so the demo always works.
-      await streamDummy(dummyReply(message, useRag));
+      await streamDummy(dummyReply(message, useDocs));
     } finally {
       setStreaming(false);
     }
@@ -166,23 +199,33 @@ function Assistant() {
 
   const reset = () => {
     setMessages([]);
+    setFiles([]);
     sessionId.current = undefined;
+    chatCache.messages = [];
+    chatCache.sessionId = undefined;
   };
 
   const hasMessages = messages.length > 0;
 
+  const composer = (
+    <Composer
+      input={input}
+      setInput={setInput}
+      onSend={send}
+      streaming={streaming}
+      files={files}
+      setFiles={setFiles}
+      autoFocus={!hasMessages}
+    />
+  );
+
   return (
     <div className="flex h-[calc(100vh-8rem)] flex-col">
-      {/* Header */}
-      <div className="mb-4 flex items-end justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
-            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
-            AI Assistant
-          </div>
-          <h1 className="mt-2 text-2xl font-semibold tracking-tight text-foreground">
-            Chat grounded in your organization's data
-          </h1>
+      {/* Slim header */}
+      <div className="mb-4 flex items-center justify-between gap-4">
+        <div className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+          <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
+          AI Assistant
         </div>
         <div className="flex shrink-0 items-center gap-2">
           <span className="hidden items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-[11px] font-medium text-emerald-500 sm:inline-flex">
@@ -199,148 +242,199 @@ function Assistant() {
         </div>
       </div>
 
-      {/* Conversation */}
-      <div
-        ref={scrollRef}
-        className="nice-scroll flex-1 overflow-y-auto rounded-2xl border border-border bg-surface/50 p-4 md:p-6"
-      >
-        {hasMessages ? (
-          <div className="mx-auto flex max-w-3xl flex-col gap-5">
-            {messages.map((m, i) => (
-              <div key={i} className={cn("flex gap-3", m.role === "user" && "flex-row-reverse")}>
-                <div
-                  className={cn(
-                    "grid h-8 w-8 shrink-0 place-items-center rounded-lg",
-                    m.role === "user"
-                      ? "bg-secondary text-secondary-foreground"
-                      : "brand-gradient text-primary-foreground shadow-sm shadow-primary/25",
-                  )}
-                >
-                  {m.role === "user" ? <User className="h-4 w-4" /> : <Sparkles className="h-4 w-4" />}
-                </div>
-                <div
-                  className={cn(
-                    "max-w-[80%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed",
-                    m.role === "user"
-                      ? "rounded-tr-sm bg-primary text-primary-foreground"
-                      : "rounded-tl-sm border border-border bg-card text-foreground",
-                  )}
-                >
-                  {m.content ? (
-                    <RichText text={m.content} />
-                  ) : streaming ? (
-                    <TypingDots />
-                  ) : null}
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <EmptyState onAsk={send} />
-        )}
-      </div>
-
-      {/* Composer */}
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          send(input);
-        }}
-        className="mt-3"
-      >
-        <div className="flex items-end gap-2 rounded-2xl border border-border bg-surface p-2 transition focus-within:border-primary/60 focus-within:ring-2 focus-within:ring-primary/15">
-          <textarea
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                send(input);
-              }
-            }}
-            rows={1}
-            placeholder="Message the assistant…"
-            disabled={streaming}
-            className="max-h-40 flex-1 resize-none bg-transparent px-2 py-2 text-sm outline-none placeholder:text-muted-foreground disabled:opacity-60"
-          />
-          <button
-            type="submit"
-            disabled={streaming || !input.trim()}
-            className="brand-gradient grid h-9 w-9 shrink-0 place-items-center rounded-lg text-primary-foreground shadow-sm shadow-primary/25 transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+      {hasMessages ? (
+        <>
+          {/* Conversation — a single flowing surface, no boxed card */}
+          <div
+            ref={scrollRef}
+            className="nice-scroll flex-1 overflow-y-auto"
           >
-            <Send className="h-4 w-4" />
-          </button>
+            <div className="flex w-full flex-col gap-5 px-1 py-2">
+              {messages.map((m, i) => (
+                <div key={i} className={cn("flex gap-3", m.role === "user" && "flex-row-reverse")}>
+                  <div
+                    className={cn(
+                      "grid h-8 w-8 shrink-0 place-items-center rounded-lg",
+                      m.role === "user"
+                        ? "bg-secondary text-secondary-foreground"
+                        : "brand-gradient text-primary-foreground shadow-sm shadow-primary/25",
+                    )}
+                  >
+                    {m.role === "user" ? <User className="h-4 w-4" /> : <Sparkles className="h-4 w-4" />}
+                  </div>
+                  <div
+                    className={cn(
+                      "max-w-[80%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed",
+                      m.role === "user"
+                        ? "rounded-tr-sm bg-primary text-primary-foreground"
+                        : "rounded-tl-sm border border-border bg-card text-foreground",
+                    )}
+                  >
+                    {m.content ? (
+                      <RichText text={m.content} />
+                    ) : streaming ? (
+                      <TypingDots />
+                    ) : null}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Composer docked at the bottom, aligned to the conversation width */}
+          <div className="mt-2 border-t border-border pt-3">
+            <div className="w-full">{composer}</div>
+          </div>
+        </>
+      ) : (
+        /* Empty state — centered greeting, prominent input, suggestion chips.
+           Fits within the viewport (no scroll before the chat starts). */
+        <div className="flex flex-1 flex-col items-center justify-center overflow-hidden px-2 py-2">
+          <div className="w-full max-w-2xl">
+            <div className="flex flex-col items-center text-center">
+              <div className="brand-gradient grid h-11 w-11 place-items-center rounded-2xl text-primary-foreground shadow-lg shadow-primary/25">
+                <Sparkles className="h-5 w-5" />
+              </div>
+              <div className="mt-3 text-[11px] font-medium uppercase tracking-[0.22em] text-primary">
+                Workspace Copilot
+              </div>
+              <h2 className="mt-1.5 text-2xl font-semibold tracking-tight md:text-3xl">
+                How can I help with your <span className="text-primary">logistics</span> today?
+              </h2>
+              <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
+                I reason over your organization's data and draft answers — nothing posts without
+                your approval.
+              </p>
+            </div>
+
+            <div className="mt-5">{composer}</div>
+
+            <div className="mt-4 grid grid-cols-1 gap-2.5 sm:grid-cols-3">
+              {SUGGESTED.slice(0, 3).map((s) => {
+                const Icon = s.icon;
+                return (
+                  <button
+                    key={s.title}
+                    onClick={() => send(s.prompt)}
+                    className="group flex items-center gap-2.5 rounded-xl border border-border bg-surface px-3 py-2.5 text-left transition hover:-translate-y-0.5 hover:border-primary/50 hover:shadow-sm"
+                  >
+                    <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary ring-1 ring-primary/15 transition group-hover:bg-primary group-hover:text-primary-foreground">
+                      <Icon className="h-3.5 w-3.5" />
+                    </span>
+                    <span className="text-[12.5px] font-semibold leading-tight">{s.title}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
         </div>
-        <div className="mt-2 flex items-center justify-between px-1">
-          <label className="flex cursor-pointer items-center gap-1.5 text-xs text-muted-foreground">
-            <input
-              type="checkbox"
-              checked={useRag}
-              onChange={(e) => setUseRag(e.target.checked)}
-              className="accent-[var(--primary)]"
-            />
-            Use my documents
-          </label>
-          <span className="text-[11px] text-muted-foreground">
-            Enter to send · Shift+Enter for a new line
-          </span>
-        </div>
-      </form>
+      )}
     </div>
   );
 }
 
-function EmptyState({ onAsk }: { onAsk: (p: string) => void }) {
+/* ─────────────────────────  Composer  ───────────────────────── */
+
+function Composer({
+  input,
+  setInput,
+  onSend,
+  streaming,
+  files,
+  setFiles,
+  autoFocus = false,
+}: {
+  input: string;
+  setInput: (v: string) => void;
+  onSend: (text: string) => void;
+  streaming: boolean;
+  files: string[];
+  setFiles: (v: string[]) => void;
+  autoFocus?: boolean;
+}) {
+  const fileRef = useRef<HTMLInputElement>(null);
+
   return (
-    <div className="mx-auto flex max-w-3xl flex-col py-8">
-      <div className="text-center">
-        <div className="brand-gradient mx-auto grid h-14 w-14 place-items-center rounded-2xl text-primary-foreground shadow-lg shadow-primary/25">
-          <Sparkles className="h-6 w-6" />
-        </div>
-        <div className="mt-4 text-[11px] font-medium uppercase tracking-[0.22em] text-primary">
-          Workspace Copilot
-        </div>
-        <h2 className="mt-2 text-2xl font-semibold tracking-tight md:text-3xl">
-          Ask anything, or start with a suggestion.
-        </h2>
-        <p className="mx-auto mt-3 max-w-md text-sm text-muted-foreground">
-          The assistant reasons over your organization's data and drafts answers for you — every
-          turn is traced.
-        </p>
-      </div>
-
-      <div className="mt-8 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-        {SUGGESTED.map((s) => {
-          const Icon = s.icon;
-          return (
-            <button
-              key={s.label}
-              onClick={() => onAsk(s.label)}
-              className="group flex items-center gap-3 rounded-xl border border-border bg-surface px-4 py-3.5 text-left transition hover:-translate-y-0.5 hover:border-primary/50 hover:shadow-sm"
-            >
-              <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary ring-1 ring-primary/15">
-                <Icon className="h-4 w-4" />
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        onSend(input);
+      }}
+    >
+      <div className="rounded-2xl border border-border bg-surface shadow-sm transition focus-within:border-primary/60 focus-within:ring-2 focus-within:ring-primary/15">
+        {/* Attached documents */}
+        {files.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 border-b border-border px-3 py-2">
+            {files.map((f, i) => (
+              <span
+                key={`${f}-${i}`}
+                className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary"
+              >
+                <FileText className="h-3 w-3" />
+                <span className="max-w-[160px] truncate">{f}</span>
+                <button
+                  type="button"
+                  onClick={() => setFiles(files.filter((_, j) => j !== i))}
+                  className="text-primary/70 transition hover:text-primary"
+                  aria-label={`Remove ${f}`}
+                >
+                  <X className="h-3 w-3" />
+                </button>
               </span>
-              <span className="flex-1 text-sm font-medium">{s.label}</span>
-              <Send className="h-3.5 w-3.5 text-muted-foreground transition group-hover:text-primary" />
-            </button>
-          );
-        })}
-      </div>
+            ))}
+          </div>
+        )}
 
-      <div className="mt-8 grid grid-cols-1 gap-3 sm:grid-cols-3">
-        {CAPABILITIES.map((c) => {
-          const Icon = c.icon;
-          return (
-            <div key={c.title} className="rounded-xl border border-border bg-surface p-4">
-              <Icon className="h-4 w-4 text-primary" />
-              <div className="mt-2 text-sm font-semibold">{c.title}</div>
-              <div className="mt-0.5 text-xs text-muted-foreground">{c.detail}</div>
-            </div>
-          );
-        })}
+        <div className="flex items-end gap-2 px-2.5 py-1.5">
+          {/* Attach / upload documents */}
+          <input
+            ref={fileRef}
+            type="file"
+            multiple
+            className="hidden"
+            onChange={(e) => {
+              const names = Array.from(e.target.files ?? []).map((f) => f.name);
+              if (names.length) setFiles([...files, ...names]);
+              e.target.value = "";
+            }}
+          />
+          <button
+            type="button"
+            onClick={() => fileRef.current?.click()}
+            title="Attach documents"
+            aria-label="Attach documents"
+            className="mb-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-border text-muted-foreground transition hover:border-primary/50 hover:text-primary"
+          >
+            <Plus className="h-4 w-4" />
+          </button>
+          <textarea
+            value={input}
+            autoFocus={autoFocus}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                onSend(input);
+              }
+            }}
+            rows={1}
+            placeholder="Ask about purchase orders, shipments, approvals…"
+            disabled={streaming}
+            className="max-h-32 min-h-[2.25rem] flex-1 resize-none bg-transparent px-1 py-2 text-sm outline-none placeholder:text-muted-foreground disabled:opacity-60"
+          />
+          <button
+            type="submit"
+            disabled={streaming || !input.trim()}
+            className="brand-gradient mb-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-xl text-primary-foreground shadow-sm shadow-primary/25 transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <Send className="h-4 w-4" />
+          </button>
+        </div>
       </div>
-    </div>
+      <p className="mt-2 text-center text-[11px] text-muted-foreground">
+        Attach documents with + · Enter to send · Shift+Enter for a new line
+      </p>
+    </form>
   );
 }
 

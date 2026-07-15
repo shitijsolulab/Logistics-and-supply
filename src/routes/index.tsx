@@ -417,21 +417,51 @@ const LANDING_INTEGRATIONS: LandingIntegration[] = [
   { slug: "salesforce", name: "Salesforce", domain: "salesforce.com", category: "ERP" },
 
   // Email & Docs
-  { slug: "gmail", name: "Gmail", domain: "gmail.com", category: "Email & Docs" },
+  {
+    slug: "gmail",
+    name: "Gmail",
+    domain: "gmail.com",
+    category: "Email & Docs",
+    logo: "https://ssl.gstatic.com/images/branding/product/2x/gmail_2020q4_48dp.png",
+  },
   { slug: "outlook", name: "Outlook", domain: "outlook.com", category: "Email & Docs" },
-  { slug: "google-drive", name: "Google Drive", domain: "drive.google.com", category: "Email & Docs" },
+  {
+    slug: "google-drive",
+    name: "Google Drive",
+    domain: "drive.google.com",
+    category: "Email & Docs",
+    logo: "https://ssl.gstatic.com/images/branding/product/2x/drive_2020q4_48dp.png",
+  },
   { slug: "sharepoint", name: "SharePoint", domain: "microsoft.com", category: "Email & Docs" },
   { slug: "dropbox", name: "Dropbox", domain: "dropbox.com", category: "Email & Docs" },
 
   // Collaboration
   { slug: "slack", name: "Slack", domain: "slack.com", category: "Collaboration" },
   { slug: "teams", name: "Microsoft Teams", domain: "microsoft.com", category: "Collaboration" },
-  { slug: "google-calendar", name: "Google Calendar", domain: "calendar.google.com", category: "Collaboration" },
+  {
+    slug: "google-calendar",
+    name: "Google Calendar",
+    domain: "calendar.google.com",
+    category: "Collaboration",
+    logo: "https://ssl.gstatic.com/images/branding/product/2x/calendar_2020q4_48dp.png",
+  },
 
   // Forms & Sheets
-  { slug: "google-forms", name: "Google Forms", domain: "docs.google.com", category: "Forms & Sheets" },
+  {
+    slug: "google-forms",
+    name: "Google Forms",
+    domain: "docs.google.com",
+    category: "Forms & Sheets",
+    logo: "https://ssl.gstatic.com/docs/forms/device_home/android_192.png",
+  },
   { slug: "typeform", name: "Typeform", domain: "typeform.com", category: "Forms & Sheets" },
-  { slug: "google-sheets", name: "Google Sheets", domain: "sheets.google.com", category: "Forms & Sheets" },
+  {
+    slug: "google-sheets",
+    name: "Google Sheets",
+    domain: "sheets.google.com",
+    category: "Forms & Sheets",
+    logo: "https://ssl.gstatic.com/images/branding/product/2x/sheets_2020q4_48dp.png",
+  },
   { slug: "docusign", name: "DocuSign", domain: "docusign.com", category: "Forms & Sheets" },
 ];
 
@@ -638,7 +668,7 @@ function FlowDiagram() {
   return (
     <section className="relative border-b border-border/60 py-20">
       <div className="mx-auto max-w-7xl px-5">
-        <Reveal className="mx-auto mb-12 flex max-w-2xl flex-col items-center gap-3 text-center">
+        <Reveal className="mx-auto mb-8 flex max-w-2xl flex-col items-center gap-3 text-center">
           <span className="font-mono text-xs uppercase tracking-wider text-primary">
             The data flow
           </span>
@@ -651,8 +681,8 @@ function FlowDiagram() {
           </p>
         </Reveal>
 
-        <Reveal pop>
-          <div className="no-scrollbar relative overflow-x-auto rounded-2xl border border-border bg-gradient-to-br from-surface to-surface-2/60 p-4 shadow-sm md:p-6">
+        <Reveal pop className="flex justify-center">
+          <div className="no-scrollbar relative w-fit max-w-full overflow-x-auto rounded-2xl border border-border bg-gradient-to-br from-surface to-surface-2/60 p-4 shadow-sm md:p-6">
             <div
               aria-hidden
               className="pointer-events-none absolute left-1/2 top-1/2 h-64 w-[36rem] -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary/10 blur-3xl"
@@ -660,7 +690,7 @@ function FlowDiagram() {
             <div
               ref={ref}
               className="grid-bg relative mx-auto rounded-xl"
-              style={{ width: FLOW_W, height: CORE.top + CORE.h + 60 }}
+              style={{ width: FLOW_W, height: CORE.top + CORE.h + 96 }}
             >
               {/* column captions */}
               <div className="absolute left-6 top-0 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
@@ -683,7 +713,7 @@ function FlowDiagram() {
               <svg
                 className="absolute inset-0"
                 width={FLOW_W}
-                height={CORE.top + CORE.h + 60}
+                height={CORE.top + CORE.h + 96}
                 fill="none"
               >
                 {FLOW_SOURCES.map((s) => {
@@ -763,7 +793,7 @@ function FlowDiagram() {
         </Reveal>
 
         {/* detail caption */}
-        <div className="mt-4 flex min-h-[2.5rem] items-center justify-center rounded-xl border border-border bg-surface-2/50 px-4 py-3 text-center text-sm text-muted-foreground">
+        <div className="mx-auto mt-4 flex min-h-[2.5rem] max-w-3xl items-center justify-center rounded-xl border border-border bg-surface-2/50 px-4 py-3 text-center text-sm text-muted-foreground">
           {active ? (
             <span className="text-foreground/90">{FLOW_DETAIL[active]}</span>
           ) : (
@@ -1499,14 +1529,16 @@ function Hero({ onBookDemo }: { onBookDemo: () => void }) {
         <img
           src="/Background-light.png"
           alt=""
-          className="absolute inset-0 h-full w-full object-cover object-center dark:hidden"
+          className="absolute inset-0 h-full w-full object-cover object-top dark:hidden"
         />
         <img
           src="/Background-dark.png"
           alt=""
-          className="absolute inset-0 hidden h-full w-full object-cover object-center dark:block"
+          className="absolute inset-0 hidden h-full w-full object-cover object-top dark:block"
         />
-        <div className="absolute inset-0 bg-gradient-to-b from-background/30 via-background/40 to-background/80 dark:from-background/40 dark:via-background/30 dark:to-background/80" />
+        <div className="absolute inset-0 bg-gradient-to-b from-background/25 via-background/40 to-background dark:from-background/35 dark:via-background/45 dark:to-background" />
+        {/* mask the baked-in marketing strip at the image bottom */}
+        <div className="absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-background to-transparent" />
         <div className="absolute -top-44 left-1/2 h-[30rem] w-[60rem] -translate-x-1/2 rounded-full bg-primary/25 blur-3xl" />
         <div className="absolute -top-10 right-0 h-80 w-80 rounded-full bg-primary-2/20 blur-3xl" />
         {/* faint logistics motifs — left side, clear of the product card */}
@@ -1520,7 +1552,7 @@ function Hero({ onBookDemo }: { onBookDemo: () => void }) {
         <div className="grid items-center gap-10 lg:grid-cols-[1.05fr_0.95fr] lg:gap-14">
           {/* Left — copy */}
           <div className="max-w-xl">
-            <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-primary/25 bg-primary/5 px-3 py-1 text-xs font-medium text-primary">
+            <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-medium text-foreground">
               <span className="h-1.5 w-1.5 rounded-full bg-primary" />
               Built for operations, procurement & supply chain teams
             </div>

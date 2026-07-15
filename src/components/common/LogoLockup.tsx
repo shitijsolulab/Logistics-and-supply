@@ -7,14 +7,14 @@ export function LogoLockup({ className }: Readonly<{ className?: string }>) {
   return (
     <span className={cn("inline-flex items-center gap-2.5", className)}>
       <img
-        src="/logo.png"
+        src="/logo.jpg"
         alt="Logistics & Supply Chain AI OS"
-        className="h-11 w-auto shrink-0 object-contain dark:hidden"
+        className="h-12 w-14 shrink-0 origin-center scale-110 object-contain dark:hidden"
       />
       <img
         src="/logo-light.png"
         alt="Logistics & Supply Chain AI OS"
-        className="hidden h-11 w-auto shrink-0 object-contain dark:block"
+        className="hidden h-12 w-14 shrink-0 origin-center scale-110 object-contain dark:block"
       />
       <span className="flex flex-col leading-none">
         <span className="text-[0.52rem] font-semibold uppercase leading-[1.35] tracking-[0.16em] text-primary">

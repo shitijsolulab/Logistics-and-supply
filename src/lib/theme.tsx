@@ -3,7 +3,7 @@
 // the app layout to the `.app-shell` element (see routes/app.tsx), so the marketing
 // landing page is never affected.
 
-import { createContext, useCallback, useContext, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 
 type Theme = "light" | "dark";
@@ -29,6 +29,12 @@ const Ctx = createContext<ThemeCtx | null>(null);
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setThemeState] = useState<Theme>(initialTheme);
+
+  // Keep the <html> class in sync so the pre-hydration script's class stays
+  // correct and CSS (html.dark .landing-root / .app-shell) matches React state.
+  useEffect(() => {
+    document.documentElement.classList.toggle("dark", theme === "dark");
+  }, [theme]);
 
   const setTheme = useCallback((t: Theme) => {
     setThemeState(t);

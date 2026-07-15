@@ -65,7 +65,8 @@
 
 /* Dark variant for the marketing landing page. Scoped to `.landing-root` so it
    redefines the same tokens the light `:root` sets, with higher specificity. */
-.landing-root.dark {
+.landing-root.dark,
+html.dark .landing-root {
   /* Dark navy (#0B1F3A family) with bright logistics-blue accent. */
   --background: oklch(0.22 0.042 258);
   --foreground: oklch(0.96 0.008 255);
@@ -158,7 +159,8 @@
   background-color: var(--background);
 }
 
-.app-shell.dark {
+.app-shell.dark,
+html.dark .app-shell {
   /* Dark navy (matches marketing), bright logistics-blue accent. */
   --background: oklch(0.21 0.038 258);
   --foreground: oklch(0.96 0.008 258);

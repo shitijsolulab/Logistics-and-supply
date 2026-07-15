@@ -114,7 +114,7 @@ function RootShell({ children }: { children: ReactNode }) {
         <script
           dangerouslySetInnerHTML={{
             __html:
-              "(function(){try{var t=localStorage.getItem('aios.theme');if(t!=='light'&&t!=='dark'){t=(window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light';}document.documentElement.style.backgroundColor=t==='dark'?'#0b1f3a':'#ffffff';}catch(e){}})();",
+              "(function(){try{var t=localStorage.getItem('aios.theme');if(t!=='light'&&t!=='dark'){t=(window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light';}var d=document.documentElement;d.classList.toggle('dark',t==='dark');d.style.backgroundColor=t==='dark'?'#0b1f3a':'#ffffff';}catch(e){}})();",
           }}
         />
         <HeadContent />
